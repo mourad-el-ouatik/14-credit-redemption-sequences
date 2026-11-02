@@ -1,0 +1,23 @@
+{
+  "accounts": {
+    "A": 100,
+    "B": 20
+  },
+  "offers": {
+    "spring": {
+      "cap": 30,
+      "eligible": [
+        "A",
+        "B"
+      ]
+    },
+    "summer": {
+      "cap": 10,
+      "eligible": [
+        "A"
+      ]
+    }
+  },
+  "claims": {},
+  "requests": {}
+}

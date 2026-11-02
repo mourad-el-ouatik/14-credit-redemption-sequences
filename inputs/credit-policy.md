@@ -1,0 +1,10 @@
+# WillowPass promotional-credit policy
+
+These are fictional noncash promotional units, never real payments. Each case resets to state.json, then applies offer_caps before any action. Case/action IDs label evidence; request_id is the business replay key. Account IDs are trusted upstream identities; authentication is outside scope. Only the supplied request shape is required.
+
+CR1: Process checks in this order: successful request-ID lookup; amount validation; identity/offer existence; eligibility; cap; prior claim; sufficient balance. Codes are replay/conflict, invalid, missing, ineligible, cap, claimed, insufficient, or ok respectively.
+CR2: Amount must have exact Python type int (not bool), be positive, and be <= the offer cap (inclusive). Invalid amounts return invalid. Unknown account/offer returns missing; an account outside eligible returns ineligible.
+CR3: One successful redemption per account/offer; subsequent fresh request IDs return claimed. Success subtracts amount only from that account, records claims["account/offer"] = amount, and returns {"code":"ok","amount":amount}.
+CR4: Every denial leaves the ENTIRE state unchanged, including claims and requests. Denials reserve neither request IDs nor eligibility. A corrected retry may reuse its denied ID.
+CR5: Only successes enter requests, keyed by request_id, with payload [account,offer,amount] and response from CR3. A reused successful ID with exactly equal typed payload returns {"code":"replay","amount":original_amount}, without mutation. Any different payload returns {"code":"conflict"}, without mutation; bool differs from int. Replay lookup precedes other checks.
+CR6: Offers never mutate during a case. For each account, initial balance minus the sum of its successful claim amounts equals current balance; balances stay nonnegative. Each claim has exactly one successful request record and vice versa. Replays add neither. Full before/after state and responses must be checked; single successful statuses are insufficient. No threads, persistence, external payment system or concurrent execution is modeled.
