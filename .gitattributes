@@ -1,0 +1,3 @@
+inputs/* -text
+Provided-README.md -text
+SHA256SUMS text eol=lf
