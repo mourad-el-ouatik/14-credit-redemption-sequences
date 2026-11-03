@@ -1,0 +1,1433 @@
+{
+  "schema_version": 1,
+  "description": "Witness scenarios for the credit-redemption audit. Expected values come from inputs/credit-policy.md (CR1-CR6), not from the model's behaviour.",
+  "reset": "Every scenario starts from a fresh deep copy of inputs/state.json with the scenario's offer_caps applied. Nothing is shared between scenarios; order of actions inside a scenario matters.",
+  "state_field": "'unchanged' = the complete state equals the state before the action; otherwise an object giving the complete expected accounts, claims and requests after the action. Offers must stay equal to the start state in every case.",
+  "invariants": "CR6 must hold after every action (conservation, non-negative balances, claim/request bijection, offers unmutated).",
+  "scenarios": [
+    {
+      "id": "W01",
+      "title": "exact cap is accepted",
+      "rules": [
+        "CR2",
+        "CR3"
+      ],
+      "category": "legitimate",
+      "related": [],
+      "purpose": "Amount equal to the cap (30 with cap 30) is valid: cap is inclusive.",
+      "offer_caps": {
+        "spring": 30
+      },
+      "actions": [
+        {
+          "id": "W01.1",
+          "request_id": "W01-R1",
+          "account": "A",
+          "offer": "spring",
+          "amount": 30
+        }
+      ],
+      "expected": [
+        {
+          "action": "W01.1",
+          "response": {
+            "code": "ok",
+            "amount": 30
+          },
+          "state": {
+            "accounts": {
+              "A": 70,
+              "B": 20
+            },
+            "claims": {
+              "A/spring": 30
+            },
+            "requests": {
+              "W01-R1": {
+                "payload": [
+                  "A",
+                  "spring",
+                  30
+                ],
+                "response": {
+                  "code": "ok",
+                  "amount": 30
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "W02",
+      "title": "cap+1 denied, then same id retried at the cap",
+      "rules": [
+        "CR2",
+        "CR4",
+        "CR5"
+      ],
+      "category": "adversarial",
+      "related": [
+        "N2"
+      ],
+      "purpose": "One above the cap is denied without mutation; the denied request id is not reserved and the corrected retry succeeds.",
+      "offer_caps": {
+        "spring": 30
+      },
+      "actions": [
+        {
+          "id": "W02.1",
+          "request_id": "W02-R1",
+          "account": "A",
+          "offer": "spring",
+          "amount": 31
+        },
+        {
+          "id": "W02.2",
+          "request_id": "W02-R1",
+          "account": "A",
+          "offer": "spring",
+          "amount": 30
+        }
+      ],
+      "expected": [
+        {
+          "action": "W02.1",
+          "response": {
+            "code": "cap"
+          },
+          "state": "unchanged"
+        },
+        {
+          "action": "W02.2",
+          "response": {
+            "code": "ok",
+            "amount": 30
+          },
+          "state": {
+            "accounts": {
+              "A": 70,
+              "B": 20
+            },
+            "claims": {
+              "A/spring": 30
+            },
+            "requests": {
+              "W02-R1": {
+                "payload": [
+                  "A",
+                  "spring",
+                  30
+                ],
+                "response": {
+                  "code": "ok",
+                  "amount": 30
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "W03",
+      "title": "zero amount denied, corrected retry",
+      "rules": [
+        "CR2",
+        "CR4"
+      ],
+      "category": "adversarial",
+      "related": [
+        "N2"
+      ],
+      "purpose": "Amount must be positive: 0 is invalid and must not consume the claim.",
+      "offer_caps": {
+        "spring": 30
+      },
+      "actions": [
+        {
+          "id": "W03.1",
+          "request_id": "W03-R1",
+          "account": "A",
+          "offer": "spring",
+          "amount": 0
+        },
+        {
+          "id": "W03.2",
+          "request_id": "W03-R1",
+          "account": "A",
+          "offer": "spring",
+          "amount": 5
+        }
+      ],
+      "expected": [
+        {
+          "action": "W03.1",
+          "response": {
+            "code": "invalid"
+          },
+          "state": "unchanged"
+        },
+        {
+          "action": "W03.2",
+          "response": {
+            "code": "ok",
+            "amount": 5
+          },
+          "state": {
+            "accounts": {
+              "A": 95,
+              "B": 20
+            },
+            "claims": {
+              "A/spring": 5
+            },
+            "requests": {
+              "W03-R1": {
+                "payload": [
+                  "A",
+                  "spring",
+                  5
+                ],
+                "response": {
+                  "code": "ok",
+                  "amount": 5
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "W04",
+      "title": "negative amount denied, corrected retry",
+      "rules": [
+        "CR2",
+        "CR4",
+        "CR6"
+      ],
+      "category": "adversarial",
+      "related": [
+        "N2"
+      ],
+      "purpose": "A negative amount must be invalid; accepting it would credit the account (creation of units).",
+      "offer_caps": {
+        "spring": 30
+      },
+      "actions": [
+        {
+          "id": "W04.1",
+          "request_id": "W04-R1",
+          "account": "A",
+          "offer": "spring",
+          "amount": -5
+        },
+        {
+          "id": "W04.2",
+          "request_id": "W04-R1",
+          "account": "A",
+          "offer": "spring",
+          "amount": 5
+        }
+      ],
+      "expected": [
+        {
+          "action": "W04.1",
+          "response": {
+            "code": "invalid"
+          },
+          "state": "unchanged"
+        },
+        {
+          "action": "W04.2",
+          "response": {
+            "code": "ok",
+            "amount": 5
+          },
+          "state": {
+            "accounts": {
+              "A": 95,
+              "B": 20
+            },
+            "claims": {
+              "A/spring": 5
+            },
+            "requests": {
+              "W04-R1": {
+                "payload": [
+                  "A",
+                  "spring",
+                  5
+                ],
+                "response": {
+                  "code": "ok",
+                  "amount": 5
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "W05",
+      "title": "bool True amount denied, corrected retry",
+      "rules": [
+        "CR2",
+        "CR4"
+      ],
+      "category": "adversarial",
+      "related": [
+        "N2"
+      ],
+      "purpose": "bool is not an exact int: True must be invalid even though isinstance(True, int) holds in Python.",
+      "offer_caps": {
+        "spring": 30
+      },
+      "actions": [
+        {
+          "id": "W05.1",
+          "request_id": "W05-R1",
+          "account": "A",
+          "offer": "summer",
+          "amount": true
+        },
+        {
+          "id": "W05.2",
+          "request_id": "W05-R1",
+          "account": "A",
+          "offer": "summer",
+          "amount": 10
+        }
+      ],
+      "expected": [
+        {
+          "action": "W05.1",
+          "response": {
+            "code": "invalid"
+          },
+          "state": "unchanged"
+        },
+        {
+          "action": "W05.2",
+          "response": {
+            "code": "ok",
+            "amount": 10
+          },
+          "state": {
+            "accounts": {
+              "A": 90,
+              "B": 20
+            },
+            "claims": {
+              "A/summer": 10
+            },
+            "requests": {
+              "W05-R1": {
+                "payload": [
+                  "A",
+                  "summer",
+                  10
+                ],
+                "response": {
+                  "code": "ok",
+                  "amount": 10
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "W06",
+      "title": "bool False amount denied, corrected retry",
+      "rules": [
+        "CR2",
+        "CR4"
+      ],
+      "category": "adversarial",
+      "related": [
+        "N2"
+      ],
+      "purpose": "False is both a bool and zero: invalid on two counts, and must not consume the claim.",
+      "offer_caps": {
+        "spring": 30
+      },
+      "actions": [
+        {
+          "id": "W06.1",
+          "request_id": "W06-R1",
+          "account": "A",
+          "offer": "spring",
+          "amount": false
+        },
+        {
+          "id": "W06.2",
+          "request_id": "W06-R1",
+          "account": "A",
+          "offer": "spring",
+          "amount": 30
+        }
+      ],
+      "expected": [
+        {
+          "action": "W06.1",
+          "response": {
+            "code": "invalid"
+          },
+          "state": "unchanged"
+        },
+        {
+          "action": "W06.2",
+          "response": {
+            "code": "ok",
+            "amount": 30
+          },
+          "state": {
+            "accounts": {
+              "A": 70,
+              "B": 20
+            },
+            "claims": {
+              "A/spring": 30
+            },
+            "requests": {
+              "W06-R1": {
+                "payload": [
+                  "A",
+                  "spring",
+                  30
+                ],
+                "response": {
+                  "code": "ok",
+                  "amount": 30
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "W07",
+      "title": "unknown account",
+      "rules": [
+        "CR1",
+        "CR2"
+      ],
+      "category": "legitimate",
+      "related": [],
+      "purpose": "A valid amount for an unknown account returns missing without mutation.",
+      "offer_caps": {
+        "spring": 30
+      },
+      "actions": [
+        {
+          "id": "W07.1",
+          "request_id": "W07-R1",
+          "account": "Z",
+          "offer": "spring",
+          "amount": 5
+        }
+      ],
+      "expected": [
+        {
+          "action": "W07.1",
+          "response": {
+            "code": "missing"
+          },
+          "state": "unchanged"
+        }
+      ]
+    },
+    {
+      "id": "W08",
+      "title": "unknown offer",
+      "rules": [
+        "CR1",
+        "CR2"
+      ],
+      "category": "legitimate",
+      "related": [],
+      "purpose": "A valid amount for an unknown offer returns missing without mutation.",
+      "offer_caps": {
+        "spring": 30
+      },
+      "actions": [
+        {
+          "id": "W08.1",
+          "request_id": "W08-R1",
+          "account": "A",
+          "offer": "winter",
+          "amount": 5
+        }
+      ],
+      "expected": [
+        {
+          "action": "W08.1",
+          "response": {
+            "code": "missing"
+          },
+          "state": "unchanged"
+        }
+      ]
+    },
+    {
+      "id": "W09",
+      "title": "amount validation precedes identity check",
+      "rules": [
+        "CR1",
+        "CR2"
+      ],
+      "category": "adversarial",
+      "related": [],
+      "purpose": "CR1 orders amount validation before existence: a negative amount for an unknown account is invalid, not missing.",
+      "offer_caps": {
+        "spring": 30
+      },
+      "actions": [
+        {
+          "id": "W09.1",
+          "request_id": "W09-R1",
+          "account": "Z",
+          "offer": "spring",
+          "amount": -5
+        }
+      ],
+      "expected": [
+        {
+          "action": "W09.1",
+          "response": {
+            "code": "invalid"
+          },
+          "state": "unchanged"
+        }
+      ]
+    },
+    {
+      "id": "W10",
+      "title": "ineligible account, also when the amount exceeds the cap",
+      "rules": [
+        "CR1",
+        "CR2"
+      ],
+      "category": "legitimate",
+      "related": [
+        "N3"
+      ],
+      "purpose": "B is not eligible for summer; eligibility is checked before the cap, so 11 (cap 10) is ineligible, not cap.",
+      "offer_caps": {
+        "spring": 30
+      },
+      "actions": [
+        {
+          "id": "W10.1",
+          "request_id": "W10-R1",
+          "account": "B",
+          "offer": "summer",
+          "amount": 5
+        },
+        {
+          "id": "W10.2",
+          "request_id": "W10-R2",
+          "account": "B",
+          "offer": "summer",
+          "amount": 11
+        }
+      ],
+      "expected": [
+        {
+          "action": "W10.1",
+          "response": {
+            "code": "ineligible"
+          },
+          "state": "unchanged"
+        },
+        {
+          "action": "W10.2",
+          "response": {
+            "code": "ineligible"
+          },
+          "state": "unchanged"
+        }
+      ]
+    },
+    {
+      "id": "W11",
+      "title": "second redemption under a new id",
+      "rules": [
+        "CR3"
+      ],
+      "category": "adversarial",
+      "related": [],
+      "purpose": "One successful redemption per account/offer: a fresh id for the same pair is claimed; a different offer is still allowed.",
+      "offer_caps": {
+        "spring": 30
+      },
+      "actions": [
+        {
+          "id": "W11.1",
+          "request_id": "W11-R1",
+          "account": "A",
+          "offer": "spring",
+          "amount": 10
+        },
+        {
+          "id": "W11.2",
+          "request_id": "W11-R2",
+          "account": "A",
+          "offer": "spring",
+          "amount": 10
+        },
+        {
+          "id": "W11.3",
+          "request_id": "W11-R3",
+          "account": "A",
+          "offer": "summer",
+          "amount": 10
+        }
+      ],
+      "expected": [
+        {
+          "action": "W11.1",
+          "response": {
+            "code": "ok",
+            "amount": 10
+          },
+          "state": {
+            "accounts": {
+              "A": 90,
+              "B": 20
+            },
+            "claims": {
+              "A/spring": 10
+            },
+            "requests": {
+              "W11-R1": {
+                "payload": [
+                  "A",
+                  "spring",
+                  10
+                ],
+                "response": {
+                  "code": "ok",
+                  "amount": 10
+                }
+              }
+            }
+          }
+        },
+        {
+          "action": "W11.2",
+          "response": {
+            "code": "claimed"
+          },
+          "state": "unchanged"
+        },
+        {
+          "action": "W11.3",
+          "response": {
+            "code": "ok",
+            "amount": 10
+          },
+          "state": {
+            "accounts": {
+              "A": 80,
+              "B": 20
+            },
+            "claims": {
+              "A/spring": 10,
+              "A/summer": 10
+            },
+            "requests": {
+              "W11-R1": {
+                "payload": [
+                  "A",
+                  "spring",
+                  10
+                ],
+                "response": {
+                  "code": "ok",
+                  "amount": 10
+                }
+              },
+              "W11-R3": {
+                "payload": [
+                  "A",
+                  "summer",
+                  10
+                ],
+                "response": {
+                  "code": "ok",
+                  "amount": 10
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "W12",
+      "title": "exact replay changes nothing",
+      "rules": [
+        "CR5",
+        "CR6"
+      ],
+      "category": "adversarial",
+      "related": [
+        "N1"
+      ],
+      "purpose": "Same id and exactly equal typed payload returns replay with the original amount and no mutation (charged once).",
+      "offer_caps": {
+        "spring": 30
+      },
+      "actions": [
+        {
+          "id": "W12.1",
+          "request_id": "W12-R1",
+          "account": "A",
+          "offer": "spring",
+          "amount": 10
+        },
+        {
+          "id": "W12.2",
+          "request_id": "W12-R1",
+          "account": "A",
+          "offer": "spring",
+          "amount": 10
+        },
+        {
+          "id": "W12.3",
+          "request_id": "W12-R1",
+          "account": "A",
+          "offer": "spring",
+          "amount": 10
+        }
+      ],
+      "expected": [
+        {
+          "action": "W12.1",
+          "response": {
+            "code": "ok",
+            "amount": 10
+          },
+          "state": {
+            "accounts": {
+              "A": 90,
+              "B": 20
+            },
+            "claims": {
+              "A/spring": 10
+            },
+            "requests": {
+              "W12-R1": {
+                "payload": [
+                  "A",
+                  "spring",
+                  10
+                ],
+                "response": {
+                  "code": "ok",
+                  "amount": 10
+                }
+              }
+            }
+          }
+        },
+        {
+          "action": "W12.2",
+          "response": {
+            "code": "replay",
+            "amount": 10
+          },
+          "state": "unchanged"
+        },
+        {
+          "action": "W12.3",
+          "response": {
+            "code": "replay",
+            "amount": 10
+          },
+          "state": "unchanged"
+        }
+      ]
+    },
+    {
+      "id": "W13",
+      "title": "id reuse with a different amount",
+      "rules": [
+        "CR5"
+      ],
+      "category": "adversarial",
+      "related": [
+        "N1"
+      ],
+      "purpose": "A reused successful id with any different payload is a conflict, without mutation.",
+      "offer_caps": {
+        "spring": 30
+      },
+      "actions": [
+        {
+          "id": "W13.1",
+          "request_id": "W13-R1",
+          "account": "A",
+          "offer": "spring",
+          "amount": 10
+        },
+        {
+          "id": "W13.2",
+          "request_id": "W13-R1",
+          "account": "A",
+          "offer": "spring",
+          "amount": 20
+        }
+      ],
+      "expected": [
+        {
+          "action": "W13.1",
+          "response": {
+            "code": "ok",
+            "amount": 10
+          },
+          "state": {
+            "accounts": {
+              "A": 90,
+              "B": 20
+            },
+            "claims": {
+              "A/spring": 10
+            },
+            "requests": {
+              "W13-R1": {
+                "payload": [
+                  "A",
+                  "spring",
+                  10
+                ],
+                "response": {
+                  "code": "ok",
+                  "amount": 10
+                }
+              }
+            }
+          }
+        },
+        {
+          "action": "W13.2",
+          "response": {
+            "code": "conflict"
+          },
+          "state": "unchanged"
+        }
+      ]
+    },
+    {
+      "id": "W14",
+      "title": "id reuse by a different account",
+      "rules": [
+        "CR5"
+      ],
+      "category": "adversarial",
+      "related": [
+        "N1"
+      ],
+      "purpose": "Another account reusing A's successful id is a conflict; neither account may be touched.",
+      "offer_caps": {
+        "spring": 30
+      },
+      "actions": [
+        {
+          "id": "W14.1",
+          "request_id": "W14-R1",
+          "account": "A",
+          "offer": "spring",
+          "amount": 10
+        },
+        {
+          "id": "W14.2",
+          "request_id": "W14-R1",
+          "account": "B",
+          "offer": "spring",
+          "amount": 10
+        }
+      ],
+      "expected": [
+        {
+          "action": "W14.1",
+          "response": {
+            "code": "ok",
+            "amount": 10
+          },
+          "state": {
+            "accounts": {
+              "A": 90,
+              "B": 20
+            },
+            "claims": {
+              "A/spring": 10
+            },
+            "requests": {
+              "W14-R1": {
+                "payload": [
+                  "A",
+                  "spring",
+                  10
+                ],
+                "response": {
+                  "code": "ok",
+                  "amount": 10
+                }
+              }
+            }
+          }
+        },
+        {
+          "action": "W14.2",
+          "response": {
+            "code": "conflict"
+          },
+          "state": "unchanged"
+        }
+      ]
+    },
+    {
+      "id": "W15",
+      "title": "id reuse with a different offer",
+      "rules": [
+        "CR5"
+      ],
+      "category": "adversarial",
+      "related": [
+        "N1"
+      ],
+      "purpose": "Payload equality covers the offer too.",
+      "offer_caps": {
+        "spring": 30
+      },
+      "actions": [
+        {
+          "id": "W15.1",
+          "request_id": "W15-R1",
+          "account": "A",
+          "offer": "spring",
+          "amount": 10
+        },
+        {
+          "id": "W15.2",
+          "request_id": "W15-R1",
+          "account": "A",
+          "offer": "summer",
+          "amount": 10
+        }
+      ],
+      "expected": [
+        {
+          "action": "W15.1",
+          "response": {
+            "code": "ok",
+            "amount": 10
+          },
+          "state": {
+            "accounts": {
+              "A": 90,
+              "B": 20
+            },
+            "claims": {
+              "A/spring": 10
+            },
+            "requests": {
+              "W15-R1": {
+                "payload": [
+                  "A",
+                  "spring",
+                  10
+                ],
+                "response": {
+                  "code": "ok",
+                  "amount": 10
+                }
+              }
+            }
+          }
+        },
+        {
+          "action": "W15.2",
+          "response": {
+            "code": "conflict"
+          },
+          "state": "unchanged"
+        }
+      ]
+    },
+    {
+      "id": "W16",
+      "title": "id reuse with bool True instead of int 1",
+      "rules": [
+        "CR5",
+        "CR2"
+      ],
+      "category": "adversarial",
+      "related": [
+        "N1"
+      ],
+      "purpose": "bool differs from int (True == 1 in Python): replay lookup precedes validation, so the result is conflict, not invalid or replay.",
+      "offer_caps": {
+        "spring": 30
+      },
+      "actions": [
+        {
+          "id": "W16.1",
+          "request_id": "W16-R1",
+          "account": "A",
+          "offer": "spring",
+          "amount": 1
+        },
+        {
+          "id": "W16.2",
+          "request_id": "W16-R1",
+          "account": "A",
+          "offer": "spring",
+          "amount": true
+        }
+      ],
+      "expected": [
+        {
+          "action": "W16.1",
+          "response": {
+            "code": "ok",
+            "amount": 1
+          },
+          "state": {
+            "accounts": {
+              "A": 99,
+              "B": 20
+            },
+            "claims": {
+              "A/spring": 1
+            },
+            "requests": {
+              "W16-R1": {
+                "payload": [
+                  "A",
+                  "spring",
+                  1
+                ],
+                "response": {
+                  "code": "ok",
+                  "amount": 1
+                }
+              }
+            }
+          }
+        },
+        {
+          "action": "W16.2",
+          "response": {
+            "code": "conflict"
+          },
+          "state": "unchanged"
+        }
+      ]
+    },
+    {
+      "id": "W17",
+      "title": "insufficient balance, corrected retry with the same id",
+      "rules": [
+        "CR3",
+        "CR4",
+        "CR5"
+      ],
+      "category": "adversarial",
+      "related": [
+        "N2"
+      ],
+      "purpose": "B has 20: asking 30 is insufficient and must not consume B's spring claim; retrying 20 (exact balance) succeeds.",
+      "offer_caps": {
+        "spring": 30
+      },
+      "actions": [
+        {
+          "id": "W17.1",
+          "request_id": "W17-R1",
+          "account": "B",
+          "offer": "spring",
+          "amount": 30
+        },
+        {
+          "id": "W17.2",
+          "request_id": "W17-R1",
+          "account": "B",
+          "offer": "spring",
+          "amount": 20
+        }
+      ],
+      "expected": [
+        {
+          "action": "W17.1",
+          "response": {
+            "code": "insufficient"
+          },
+          "state": "unchanged"
+        },
+        {
+          "action": "W17.2",
+          "response": {
+            "code": "ok",
+            "amount": 20
+          },
+          "state": {
+            "accounts": {
+              "A": 100,
+              "B": 0
+            },
+            "claims": {
+              "B/spring": 20
+            },
+            "requests": {
+              "W17-R1": {
+                "payload": [
+                  "B",
+                  "spring",
+                  20
+                ],
+                "response": {
+                  "code": "ok",
+                  "amount": 20
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "W18",
+      "title": "insufficient balance, corrected retry with a new id",
+      "rules": [
+        "CR3",
+        "CR4"
+      ],
+      "category": "adversarial",
+      "related": [
+        "N2"
+      ],
+      "purpose": "Same as W17 but the retry uses a fresh id: denials reserve neither request ids nor eligibility.",
+      "offer_caps": {
+        "spring": 30
+      },
+      "actions": [
+        {
+          "id": "W18.1",
+          "request_id": "W18-R1",
+          "account": "B",
+          "offer": "spring",
+          "amount": 30
+        },
+        {
+          "id": "W18.2",
+          "request_id": "W18-R2",
+          "account": "B",
+          "offer": "spring",
+          "amount": 20
+        }
+      ],
+      "expected": [
+        {
+          "action": "W18.1",
+          "response": {
+            "code": "insufficient"
+          },
+          "state": "unchanged"
+        },
+        {
+          "action": "W18.2",
+          "response": {
+            "code": "ok",
+            "amount": 20
+          },
+          "state": {
+            "accounts": {
+              "A": 100,
+              "B": 0
+            },
+            "claims": {
+              "B/spring": 20
+            },
+            "requests": {
+              "W18-R2": {
+                "payload": [
+                  "B",
+                  "spring",
+                  20
+                ],
+                "response": {
+                  "code": "ok",
+                  "amount": 20
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "W19",
+      "title": "repeated replays cannot drain a balance",
+      "rules": [
+        "CR5",
+        "CR6"
+      ],
+      "category": "adversarial",
+      "related": [
+        "N1"
+      ],
+      "purpose": "Bounded-impact witness: three replays of a 30 redemption must leave A at 70, never below zero.",
+      "offer_caps": {
+        "spring": 30
+      },
+      "actions": [
+        {
+          "id": "W19.1",
+          "request_id": "W19-R1",
+          "account": "A",
+          "offer": "spring",
+          "amount": 30
+        },
+        {
+          "id": "W19.2",
+          "request_id": "W19-R1",
+          "account": "A",
+          "offer": "spring",
+          "amount": 30
+        },
+        {
+          "id": "W19.3",
+          "request_id": "W19-R1",
+          "account": "A",
+          "offer": "spring",
+          "amount": 30
+        },
+        {
+          "id": "W19.4",
+          "request_id": "W19-R1",
+          "account": "A",
+          "offer": "spring",
+          "amount": 30
+        }
+      ],
+      "expected": [
+        {
+          "action": "W19.1",
+          "response": {
+            "code": "ok",
+            "amount": 30
+          },
+          "state": {
+            "accounts": {
+              "A": 70,
+              "B": 20
+            },
+            "claims": {
+              "A/spring": 30
+            },
+            "requests": {
+              "W19-R1": {
+                "payload": [
+                  "A",
+                  "spring",
+                  30
+                ],
+                "response": {
+                  "code": "ok",
+                  "amount": 30
+                }
+              }
+            }
+          }
+        },
+        {
+          "action": "W19.2",
+          "response": {
+            "code": "replay",
+            "amount": 30
+          },
+          "state": "unchanged"
+        },
+        {
+          "action": "W19.3",
+          "response": {
+            "code": "replay",
+            "amount": 30
+          },
+          "state": "unchanged"
+        },
+        {
+          "action": "W19.4",
+          "response": {
+            "code": "replay",
+            "amount": 30
+          },
+          "state": "unchanged"
+        }
+      ]
+    },
+    {
+      "id": "W20",
+      "title": "claims are per account and offer",
+      "rules": [
+        "CR3"
+      ],
+      "category": "legitimate",
+      "related": [],
+      "purpose": "A's claim does not block B; each success debits only its own account.",
+      "offer_caps": {
+        "spring": 30
+      },
+      "actions": [
+        {
+          "id": "W20.1",
+          "request_id": "W20-R1",
+          "account": "A",
+          "offer": "spring",
+          "amount": 10
+        },
+        {
+          "id": "W20.2",
+          "request_id": "W20-R2",
+          "account": "B",
+          "offer": "spring",
+          "amount": 10
+        }
+      ],
+      "expected": [
+        {
+          "action": "W20.1",
+          "response": {
+            "code": "ok",
+            "amount": 10
+          },
+          "state": {
+            "accounts": {
+              "A": 90,
+              "B": 20
+            },
+            "claims": {
+              "A/spring": 10
+            },
+            "requests": {
+              "W20-R1": {
+                "payload": [
+                  "A",
+                  "spring",
+                  10
+                ],
+                "response": {
+                  "code": "ok",
+                  "amount": 10
+                }
+              }
+            }
+          }
+        },
+        {
+          "action": "W20.2",
+          "response": {
+            "code": "ok",
+            "amount": 10
+          },
+          "state": {
+            "accounts": {
+              "A": 90,
+              "B": 10
+            },
+            "claims": {
+              "A/spring": 10,
+              "B/spring": 10
+            },
+            "requests": {
+              "W20-R1": {
+                "payload": [
+                  "A",
+                  "spring",
+                  10
+                ],
+                "response": {
+                  "code": "ok",
+                  "amount": 10
+                }
+              },
+              "W20-R2": {
+                "payload": [
+                  "B",
+                  "spring",
+                  10
+                ],
+                "response": {
+                  "code": "ok",
+                  "amount": 10
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "W21",
+      "title": "reset probe (reuses W01's request id on purpose)",
+      "rules": [
+        "CR6"
+      ],
+      "category": "legitimate",
+      "related": [],
+      "purpose": "Identical to W01. If state leaked from W01 this would be replay/claimed; ok proves each scenario starts fresh. Keep it after W01.",
+      "offer_caps": {
+        "spring": 30
+      },
+      "actions": [
+        {
+          "id": "W21.1",
+          "request_id": "W01-R1",
+          "account": "A",
+          "offer": "spring",
+          "amount": 30
+        }
+      ],
+      "expected": [
+        {
+          "action": "W21.1",
+          "response": {
+            "code": "ok",
+            "amount": 30
+          },
+          "state": {
+            "accounts": {
+              "A": 70,
+              "B": 20
+            },
+            "claims": {
+              "A/spring": 30
+            },
+            "requests": {
+              "W01-R1": {
+                "payload": [
+                  "A",
+                  "spring",
+                  30
+                ],
+                "response": {
+                  "code": "ok",
+                  "amount": 30
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
